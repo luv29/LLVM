@@ -1,3 +1,9 @@
+#include "llvm/Support/CommandLine.h"
+static llvm::cl::opt<int> FlattenSeed(
+    "fla-seed",
+    llvm::cl::desc("Seed value for the Flattening obfuscation pass"),
+    llvm::cl::init(0));
+    
 #include "llvm/Transforms/Obfuscation/Flattening.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
@@ -400,7 +406,7 @@ PreservedAnalyses Flattening::run(Module &M, ModuleAnalysisManager &AM) {
     if (&f == updateFunc)
       continue;
     if (readAnnotate(f).find("flatten") != std::string::npos) {
-      doFlatten(&f, 0, updateFunc);
+      doFlatten(&f, FlattenSeed, updateFunc);
     }
   }
 
