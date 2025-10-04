@@ -1,3 +1,22 @@
+#include "llvm/Support/CommandLine.h"
+using namespace llvm;
+
+static cl::opt<int> IndCallSeed(
+    "indcall-seed",
+    cl::desc("Seed for indirect call masking (0 = nondeterministic)"),
+    cl::init(0));
+
+static void validateIndirectCallOptions() {
+    if (IndCallSeed < 0) {
+        llvm::report_fatal_error("indcall-seed must be >= 0");
+    }
+}
+
+void IndirectCall::validateOptions() {
+    validateIndirectCallOptions();
+}
+
+
 #include "llvm/Transforms/Obfuscation/IndirectCall.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
@@ -40,6 +59,11 @@ void IndirectCall::process(Function &F) {
     Constant *Func = (Constant *)CI->getCalledFunction();
     Constant *CValue = ConstantExpr::getPtrToInt(
         ConstantExpr::getBitCast(Func, Ty, false), PtrValueType, false);
+
+    if (IndCallSeed != 0) {
+        srand(IndCallSeed);
+    }
+
     unsigned Mask = getRandomNumber();
     CValue = ConstantExpr::getAdd(CValue, ConstantInt::get(PtrValueType, Mask));
     CValue = ConstantExpr::getIntToPtr(
