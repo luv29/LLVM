@@ -1,5 +1,10 @@
 #include "llvm/Support/CommandLine.h"
+#include "llvm/ADT/Statistic.h"
 using namespace llvm;
+
+STATISTIC(NumBranchesTransformed, "Number of branches transformed to indirect branches");
+STATISTIC(NumCondBranchesTransformed, "Number of conditional branches transformed");
+STATISTIC(NumUncondBranchesTransformed, "Number of unconditional branches transformed");
 
 static cl::opt<int> IndBrSeed(
     "indbr-seed",
@@ -93,6 +98,9 @@ void IndirectBranch::process(Function &F) {
   for (BranchInst *Br : Brs) {
     IRBuilder<> IRB(Br);
     if (Br->isConditional()) {
+      ++NumBranchesTransformed;
+      ++NumCondBranchesTransformed;
+
       BasicBlock *TrueBB = Br->getSuccessor(0), *FalseBB = Br->getSuccessor(1);
       IndirectBlockInfo &TI = Map[TrueBB], &FI = Map[FalseBB];
       Value *Cond = Br->getCondition();
@@ -114,6 +122,9 @@ void IndirectBranch::process(Function &F) {
       IBR->addDestination(FalseBB);
       Br->eraseFromParent();
     } else {
+      ++NumBranchesTransformed;
+      ++NumUncondBranchesTransformed;
+
       BasicBlock *BB = Br->getSuccessor(0);
       IndirectBlockInfo &BI = Map[BB];
       Value *Item = IRB.CreateLoad(

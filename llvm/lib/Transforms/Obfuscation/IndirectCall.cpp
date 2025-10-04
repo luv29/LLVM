@@ -1,5 +1,8 @@
 #include "llvm/Support/CommandLine.h"
+#include "llvm/ADT/Statistic.h"
 using namespace llvm;
+
+STATISTIC(NumCallsMasked, "Number of call instructions transformed to indirect calls");
 
 static cl::opt<int> IndCallSeed(
     "indcall-seed",
@@ -82,6 +85,7 @@ void IndirectCall::process(Function &F) {
         Ty);
     CI->setCalledFunction(CI->getFunctionType(), CallPtr);
     GV->setInitializer(CValue);
+    ++NumCallsMasked;
   }
 }
 } // namespace polaris

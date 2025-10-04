@@ -1,3 +1,26 @@
+#include "llvm/Support/CommandLine.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Support/Debug.h"
+using namespace llvm;
+
+STATISTIC(NumLinearMBAInstrs, "Number of instructions transformed by LinearMBA");
+STATISTIC(NumLinearMBATerms, "Total number of terms used in LinearMBA transformations");
+
+static cl::opt<int> LinearMBASeed(
+    "linearmba-seed",
+    cl::desc("Seed for LinearMBA randomization (0 = nondeterministic)"),
+    cl::init(0));
+
+static cl::opt<int> LinearMBAProbability(
+  "linearmba-prob",
+  cl::desc("Percentage of binary instructions to transform (0-100)"),
+  cl::init(100));
+
+static cl::opt<int> LinearMBAExtraTerms(
+    "linearmba-extra",
+    cl::desc("Maximum number of extra random terms to add"),
+    cl::init(5));
+
 #include "llvm/Transforms/Obfuscation/LinearMBA.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
@@ -96,7 +119,7 @@ void LinearMBA::randomSelectTerms(std::vector<LinearMBATerm> &SelectedTerms) {
   }
   std::shuffle(Available.begin(), Available.end(),
                std::mt19937{std::random_device{}()});
-  int Num = 5 - (int)SelectedTerms.size();
+  int Num = LinearMBAExtraTerms - (int)SelectedTerms.size();
   for (int i = 0; i < Num; i++) {
     LinearMBATerm NewTerm = {Available[i], 0};
     SelectedTerms.push_back(NewTerm);
@@ -153,6 +176,10 @@ Value *LinearMBA::buildLinearMBA(BinaryOperator *OriginalInsn,
   return Expr;
 }
 bool LinearMBA::processAt(Instruction &Insn) {
+  if (LinearMBAProbability < 100) {
+      if ((rand() % 100) >= LinearMBAProbability)
+          return false;
+  }
   std::vector<LinearMBATerm> TermsSelected;
   Value *Result = nullptr;
   if (isa<BinaryOperator>(Insn)) {
@@ -203,12 +230,24 @@ bool LinearMBA::processAt(Instruction &Insn) {
   }
   if (Result != nullptr) {
     Insn.replaceAllUsesWith(Result);
+    ++NumLinearMBAInstrs;
+
+    for (auto &T : TermsSelected) {
+        if (T.TermInfo != nullptr && T.Coefficient != 0)
+            ++NumLinearMBATerms;
+    }
     return true;
   } else {
     return false;
   }
 }
 void LinearMBA::process(Function &F) {
+  if (LinearMBASeed < 0) {
+    report_fatal_error("merge-seed must be >= 0");
+  }
+  if(LinearMBASeed != 0) {
+    srand(LinearMBASeed)
+  }
   std::vector<Instruction *> ToRemove;
   for (BasicBlock &BB : F) {
     for (Instruction &I : BB) {

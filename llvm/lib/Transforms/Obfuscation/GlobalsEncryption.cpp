@@ -1,5 +1,10 @@
 #include "llvm/Support/CommandLine.h"
+#include "llvm/ADT/Statistic.h"
 using namespace llvm;
+
+STATISTIC(NumGlobalsEncrypted, "Number of global variables encrypted");
+STATISTIC(NumFunctionsModified, "Number of functions modified by global encryption");
+STATISTIC(NumArrayGlobalsProcessed, "Number of array globals processed for encryption");
 
 static cl::opt<int> KEY_LEN(
     "gvenc-keylen",
@@ -123,6 +128,7 @@ void GlobalsEncryption::process(Module &M) {
   }
   Function *DecFunc = buildDecryptFunction(M);
   for (GlobalVariable *GV : GVs) {
+    ++NumGlobalsEncrypted;
     bool Ok = true;
     std::vector<Instruction *> Insts;
     std::set<Function *> Funcs;
@@ -156,6 +162,7 @@ void GlobalsEncryption::process(Module &M) {
       __obfu_globalenc_enc((uint8_t *)&V, (uint8_t *)&K, Size, KEY_LEN);
       GV->setInitializer(ConstantInt::get(Ty, V));
     } else if (Ty->isArrayTy() && GVEncProcessArrays) {
+      ++NumArrayGlobalsProcessed;
       ArrayType *AT = (ArrayType *)Ty;
       Type *EleTy = AT->getArrayElementType();
       if (!EleTy->isIntegerTy()) {
@@ -176,6 +183,7 @@ void GlobalsEncryption::process(Module &M) {
 
     std::map<Function *, Value *> FV;
     for (Function *F : Funcs) {
+      ++NumFunctionsModified;
       IRBuilder<> IRB(&*F->getEntryBlock().getFirstInsertionPt());
       AllocaInst *Copy = IRB.CreateAlloca(Ty);
       Copy->setAlignment(Align(GV->getAlignment()));

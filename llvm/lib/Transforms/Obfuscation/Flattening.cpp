@@ -1,4 +1,11 @@
 #include "llvm/Support/CommandLine.h"
+#include "llvm/ADT/Statistic.h"
+
+STATISTIC(NumFunctionsFlattened, "Number of functions processed by Flattening pass");
+STATISTIC(NumBlocksFlattened, "Number of basic blocks flattened");
+STATISTIC(NumSwitchBlocksCreated, "Number of switch blocks created in Flattening");
+
+
 static llvm::cl::opt<int> FlattenSeed(
     "fla-seed",
     llvm::cl::desc("Seed value for the Flattening obfuscation pass"),
@@ -68,7 +75,7 @@ Function *Flattening::buildUpdateKeyFunc(Module *m) {
 }
 
 void Flattening::doFlatten(Function *f, int seed, Function *updateFunc) {
-
+  ++NumFunctionsFlattened;
   /*srand(seed);
   std::vector<BasicBlock *> origBB;
   for (BasicBlock &basicBlock : *f)
@@ -292,6 +299,7 @@ void Flattening::doFlatten(Function *f, int seed, Function *updateFunc) {
   std::vector<BasicBlock *> origBB;
   for (BasicBlock &basicBlock : *f)
     origBB.push_back(&basicBlock);
+    ++NumBlocksFlattened;
   if (origBB.size() <= 1)
     return;
   unsigned int rand_val = seed;
@@ -317,10 +325,17 @@ void Flattening::doFlatten(Function *f, int seed, Function *updateFunc) {
   BasicBlock *newEntry = oldEntry; // Prepare basic block
   BasicBlock *loopBegin =
       BasicBlock::Create(f->getContext(), "LoopBegin", f, newEntry);
+  ++NumSwitchBlocksCreated;
+
   BasicBlock *defaultCase =
       BasicBlock::Create(f->getContext(), "DefaultCase", f, newEntry);
+  ++NumSwitchBlocksCreated;
+
   BasicBlock *loopEnd =
       BasicBlock::Create(f->getContext(), "LoopEnd", f, newEntry);
+
+  ++NumSwitchBlocksCreated;
+
   newEntry->moveBefore(loopBegin);
   BranchInst::Create(
       loopEnd, defaultCase); // Create branch instruction,link basic blocks
