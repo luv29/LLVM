@@ -1,3 +1,34 @@
+#include "llvm/Support/CommandLine.h"
+using namespace llvm;
+
+static cl::opt<int> KEY_LEN(
+    "gvenc-keylen",
+    cl::desc("Key length used for global encryption"),
+    cl::init(4));
+
+static cl::opt<int> GVEncSeed(
+    "gvenc-seed",
+    cl::desc("Seed for global encryption RNG (0 = use nondet)"),
+    cl::init(0));
+
+static cl::opt<bool> GVEncProcessArrays(
+    "gvenc-process-arrays",
+    cl::desc("Encrypt array initializers as well as scalar globals"),
+    cl::init(true));
+
+static void validateGVEncFlags() {
+  // KEY_LEN must be 1-4
+  if (KEY_LEN <= 0 || KEY_LEN > 4) {
+      report_fatal_error("gvenc-keylen must be between 1 and 4");
+  }
+
+  // GVEncSeed must be non-negative
+  if (GVEncSeed < 0) {
+      report_fatal_error("gvenc-seed must be >= 0");
+  }
+}
+
+
 #include "llvm/Transforms/Obfuscation/GlobalsEncryption.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
@@ -9,8 +40,6 @@
 
 using namespace llvm;
 namespace polaris {
-#define KEY_LEN 4
-static_assert(KEY_LEN > 0 && KEY_LEN <= 4);
 PreservedAnalyses GlobalsEncryption::run(Module &M, ModuleAnalysisManager &AM) {
   process(M);
   return PreservedAnalyses::none();
@@ -67,6 +96,7 @@ void __obfu_globalenc_enc(uint8_t *Data, uint8_t *Key, int64_t Len,
   }
 }
 void GlobalsEncryption::process(Module &M) {
+  validateGVEncFlags();
 
   const DataLayout &DL = M.getDataLayout();
   std::set<GlobalVariable *> GVs;
@@ -110,7 +140,14 @@ void GlobalsEncryption::process(Module &M) {
       continue;
     }
 
-    unsigned K = getRandomNumber();
+    unsigned K;
+    if (GVEncSeed != 0) {
+        srand(GVEncSeed);
+        K = rand();
+    } else {
+        K = getRandomNumber();
+    }
+    
     Type *Ty = GV->getValueType();
     uint64_t Size = DL.getTypeAllocSize(Ty);
     if (Ty->isIntegerTy()) {
@@ -118,7 +155,7 @@ void GlobalsEncryption::process(Module &M) {
       uint64_t V = CI->getZExtValue();
       __obfu_globalenc_enc((uint8_t *)&V, (uint8_t *)&K, Size, KEY_LEN);
       GV->setInitializer(ConstantInt::get(Ty, V));
-    } else if (Ty->isArrayTy()) {
+    } else if (Ty->isArrayTy() && GVEncProcessArrays) {
       ArrayType *AT = (ArrayType *)Ty;
       Type *EleTy = AT->getArrayElementType();
       if (!EleTy->isIntegerTy()) {
