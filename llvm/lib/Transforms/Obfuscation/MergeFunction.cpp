@@ -1,3 +1,20 @@
+#include "llvm/Support/CommandLine.h"
+#include "llvm/ADT/Statistic.h"
+using namespace llvm;
+
+STATISTIC(NumFunctionsMerged, "Number of functions merged by MergeFunction");
+STATISTIC(NumCallsReplaced, "Number of call instructions replaced by MergeFunction");
+
+static cl::opt<int> MergeSeed(
+    "merge-seed",
+    cl::desc("Seed for function merge randomization (0 = nondeterministic)"),
+    cl::init(0));
+
+static cl::opt<int> MergeRatio(
+  "merge-ratio",
+  cl::desc("Percentage of annotated functions to merge (0-100)"),
+  cl::init(100));
+
 #include "llvm/Transforms/Obfuscation/MergeFunction.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/BasicBlock.h"
@@ -58,6 +75,7 @@ void MergeFunction::merge(Module &M, std::vector<Function *> &ToMerge) {
     uint32_t SwitchVal = getUniqueNumber(SwitchMap);
     SwitchMap.push_back(SwitchVal);
     MI.SwitchVal = SwitchVal;
+    ++NumFunctionsMerged;
   }
   IRB.SetInsertPoint(SwitchBB);
   SwitchInst *SW = IRB.CreateSwitch(MergedF->getArg(0), RetBB);
@@ -98,6 +116,7 @@ void MergeFunction::merge(Module &M, std::vector<Function *> &ToMerge) {
     }
     for (CallInst *C : RemoveList) {
       C->eraseFromParent();
+      ++NumCallsReplaced;
     }
   }
   for (MergeInfo &MI : Info) {
@@ -105,6 +124,17 @@ void MergeFunction::merge(Module &M, std::vector<Function *> &ToMerge) {
   }
 }
 void MergeFunction::process(Module &M) {
+  if (MergeSeed < 0) {
+    report_fatal_error("merge-seed must be >= 0");
+  }
+  if (MergeRatio < 0 || MergeRatio > 100) {
+    report_fatal_error("merge-ratio must be >= 0 and <= 100");
+  }
+
+  if(MergeSeed != 0) {
+    srand(MergeSeed);
+  }
+
   std::vector<Function *> MergeList;
   SmallVector<ReturnInst *, 8> Returns;
   ValueToValueMapTy VMap;
@@ -112,6 +142,13 @@ void MergeFunction::process(Module &M) {
   IRBuilder<> IRB(M.getContext());
   for (Function &F : M) {
     if (readAnnotate(F).find("mergefunction") != std::string::npos) {
+      if (MergeRatio < 100) {
+          int R = rand() % 100;
+          if (R >= MergeRatio) {
+              continue;
+          }
+      }
+
       VMap.clear(), Returns.clear();
       std::vector<Type *> ArgTypes;
       Type *RetType = F.getReturnType();
