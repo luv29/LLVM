@@ -1,3 +1,18 @@
+#include "llvm/Support/CommandLine.h"
+using namespace llvm;
+
+static cl::opt<int> IndBrSeed(
+    "indbr-seed",
+    cl::desc("Seed for indirect branch random key (0 = nondeterministic)"),
+    cl::init(0));
+
+static cl::opt<bool> IndBrCondOnly(
+  "indbr-cond-only",
+  cl::desc("Only transform conditional branches"),
+  cl::init(false));
+
+
+
 #include "llvm/Transforms/Obfuscation/IndirectBranch.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
@@ -23,11 +38,17 @@ void IndirectBranch::process(Function &F) {
       }
     }
   }
+  if (IndBrSeed != 0) {
+      srand(IndBrSeed);
+  }
+
 
   std::map<BasicBlock *, IndirectBlockInfo> Map;
   std::vector<Constant *> Values;
   for (BranchInst *Br : Brs) {
     std::vector<BasicBlock *> BBs;
+    if (IndBrCondOnly && !Br->isConditional())
+    continue;
     if (Br->isConditional()) {
       BasicBlock *TrueBB = Br->getSuccessor(0), *FalseBB = Br->getSuccessor(1);
       BBs.push_back(TrueBB);
@@ -47,6 +68,9 @@ void IndirectBranch::process(Function &F) {
       Map[BB] = Info;
       Values.push_back(nullptr);
     }
+  }
+  for (auto &Iter : Map) {
+      Iter.second.RandomKey = getRandomNumber();
   }
   ArrayType *AT = ArrayType::get(
       Type::getInt8Ty(F.getContext())->getPointerTo(), Map.size());
