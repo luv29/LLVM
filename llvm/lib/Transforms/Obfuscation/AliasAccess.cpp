@@ -1,3 +1,30 @@
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/ADT/Statistic.h"
+using namespace llvm;
+
+STATISTIC(NumAllocasProcessed, "Number of allocas processed by AliasAccess");
+STATISTIC(NumGetterFunctionsCreated, "Number of getter functions created");
+STATISTIC(NumReferenceNodes, "Number of reference nodes created");
+STATISTIC(NumStoresInserted, "Number of stores inserted for alias access");
+
+
+static cl::opt<int> AliasSeed(
+    "alias-seed",
+    cl::desc("Seed for AliasAccess randomization (0 = nondeterministic)"),
+    cl::init(0));
+
+static cl::opt<unsigned> AliasBranchNum(
+    "alias-branch-num",
+    cl::desc("Number of branches used in alias access obfuscation (> 1)"),
+    cl::init(4));
+
+static cl::opt<bool> AliasReuseGetters(
+    "alias-reuse-getters",
+    cl::desc("Reuse getter functions instead of creating new ones each time"),
+    cl::init(true));
+
+
 #include "llvm/Transforms/Obfuscation/AliasAccess.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
@@ -11,8 +38,13 @@
 using namespace llvm;
 namespace polaris {
 PreservedAnalyses AliasAccess::run(Module &M, ModuleAnalysisManager &AM) {
-  static_assert(BRANCH_NUM > 1);
-  srand(time(NULL));
+  static_assert(AliasBranchNum > 1);
+  if (AliasSeed != 0) {
+      srand(AliasSeed);
+  } else {
+      srand(time(NULL));
+  }
+
   std::vector<Function *> WorkList;
   for (Function &F : M) {
     WorkList.push_back(&F);
@@ -54,12 +86,13 @@ void AliasAccess::process(Function &F) {
         AllocaInst *AI = (AllocaInst *)&I;
         if (AI->getAlign().value() <= 8) {
           AIs.push_back((AllocaInst *)&I);
+          ++NumAllocasProcessed;
         }
       }
     }
   }
 
-  for (unsigned i = 0; i < BRANCH_NUM; i++) {
+  for (unsigned i = 0; i < AliasBranchNum; i++) {
     Slots.push_back(PtrType);
   }
   TransST->setBody(Slots);
@@ -112,6 +145,7 @@ void AliasAccess::process(Function &F) {
     // AlignVal = std::max(RN->AI->getAlignment(), AlignVal);
     // RN->AI->setAlignment(Align(AlignVal));
     Graph.push_back(RN);
+    ++NumReferenceNodes;
   }
   unsigned Num = Graph.size() * 3;
   for (unsigned i = 0; i < Num; i++) {
@@ -122,9 +156,9 @@ void AliasAccess::process(Function &F) {
     Parent->AI = Cur;
     Parent->IsRaw = false;
     Parent->Id = Count++;
-    unsigned BN = getRandomNumber() % BRANCH_NUM;
+    unsigned BN = getRandomNumber() % AliasBranchNum;
     std::vector<unsigned> Random;
-    getRandomNoRepeat(BRANCH_NUM, BN, Random);
+    getRandomNoRepeat(AliasBranchNum, BN, Random);
     for (unsigned j = 0; j < BN; j++) {
       unsigned Idx = Random[j];
       ReferenceNode *RN = Graph[getRandomNumber() % Graph.size()];
@@ -133,6 +167,8 @@ void AliasAccess::process(Function &F) {
       IRB.CreateStore(
           RN->AI,
           IRB.CreateGEP(TransST, Cur, {IRB.getInt32(0), IRB.getInt32(Idx)}));
+      ++NumStoresInserted;
+
       // printf("s%d -> s%d at %d\n", Parent->Id, RN->Id, Idx);
       if (RN->IsRaw) {
         for (auto Iter = RN->RawInsts.begin(); Iter != RN->RawInsts.end();
@@ -173,12 +209,17 @@ void AliasAccess::process(Function &F) {
 
           std::vector<unsigned> &Idxs = Ptr->Path[AI];
           unsigned Idx = Idxs[getRandomNumber() % Idxs.size()];
-          if (Getter.find(Idx) == Getter.end()) {
-            Function *G = buildGetterFunction(*F.getParent(), TransST, Idx);
-            Getter[Idx] = G;
+          if (AliasReuseGetters) {
+              if (Getter.find(Idx) == Getter.end()) {
+                  Getter[Idx] = buildGetterFunction(*F.getParent(), TransST, Idx);
+                  ++NumGetterFunctionsCreated;
+              }
+              VP = IRB.CreateLoad(PtrType, IRB.CreateCall(Getter[Idx], {VP}));
+          } else {
+              Function *G = buildGetterFunction(*F.getParent(), TransST, Idx);
+              VP = IRB.CreateLoad(PtrType, IRB.CreateCall(G, {VP}));
           }
-          VP = IRB.CreateLoad(
-              PtrType, IRB.CreateCall(FunctionCallee(Getter[Idx]), {VP}));
+
           // printf("(s%d, %d) -> ", Ptr->Id, Idx);
           // VP = IRB.CreateLoad(
           //   PtrType,
