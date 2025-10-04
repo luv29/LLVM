@@ -1,3 +1,23 @@
+#include "llvm/Support/CommandLine.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Support/Debug.h"
+using namespace llvm;
+
+STATISTIC(NumBlocksProcessed, "Number of basic blocks processed by BogusControlFlow2");
+STATISTIC(NumClonedBlocks, "Number of cloned blocks created");
+STATISTIC(NumBogusConditions, "Number of bogus comparisons inserted");
+
+
+static cl::opt<int> BogusCFGChance(
+    "boguscfg-prob",
+    cl::desc("Percentage probability to apply bogus CFG to a block"),
+    cl::init(30));
+
+static cl::opt<int> BogusCFGSeed(
+    "boguscfg-seed",
+    cl::desc("Seed value for the Flattening obfuscation pass"),
+    cl::init(0));
+
 #include "llvm/Transforms/Obfuscation/BogusControlFlow2.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Transforms/Obfuscation/Utils.h"
@@ -69,18 +89,30 @@ PreservedAnalyses BogusControlFlow2::run(Function &F,
     for (BasicBlock &BB : F) {
       origBB.push_back(&BB);
     }
+    if (BogusCFGSeed < 0) {
+        report_fatal_error("boguscfg-seed must be >= 0");
+    }
+    if(BogusCFGSeed != 0) {
+      srand(BogusCFGSeed);
+    }
     for (BasicBlock *BB : origBB) {
+      if ((getRandomNumber() % 100) >= BogusCFGChance) {
+          continue;
+      }
+
       if (isa<InvokeInst>(BB->getTerminator()) || BB->isEHPad() ||
           (getRandomNumber() % 100) <= 20) {
         continue;
       }
+      ++NumBlocksProcessed;
+
       BasicBlock *headBB = BB;
       BasicBlock *bodyBB =
           BB->splitBasicBlock(BB->getFirstNonPHIOrDbgOrLifetime(), "bodyBB");
       BasicBlock *tailBB =
           bodyBB->splitBasicBlock(bodyBB->getTerminator(), "endBB");
       BasicBlock *cloneBB = cloneBasicBlock(bodyBB);
-
+      ++NumClonedBlocks;
       BB->getTerminator()->eraseFromParent();
       bodyBB->getTerminator()->eraseFromParent();
       cloneBB->getTerminator()->eraseFromParent();
@@ -91,6 +123,8 @@ PreservedAnalyses BogusControlFlow2::run(Function &F,
       BranchInst::Create(bodyBB, cloneBB, cond1, BB);
       BranchInst::Create(tailBB, cloneBB, cond2, bodyBB);
       BranchInst::Create(bodyBB, cloneBB);
+      ++NumBogusConditions;
+      ++NumBogusConditions;
     }
     return PreservedAnalyses::none();
   }
