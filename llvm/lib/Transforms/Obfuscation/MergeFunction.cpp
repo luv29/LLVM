@@ -1,7 +1,9 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/Statistic.h"
-using namespace llvm;
+#include "llvm/Support/Debug.h"
 
+using namespace llvm;
+#define DEBUG_TYPE "mergefunction"
 STATISTIC(NumFunctionsMerged, "Number of functions merged by MergeFunction");
 STATISTIC(NumCallsReplaced, "Number of call instructions replaced by MergeFunction");
 

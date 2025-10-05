@@ -2,7 +2,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Debug.h"
 using namespace llvm;
-
+#define DEBUG_TYPE "linearmba"
 STATISTIC(NumLinearMBAInstrs, "Number of instructions transformed by LinearMBA");
 STATISTIC(NumLinearMBATerms, "Total number of terms used in LinearMBA transformations");
 
@@ -246,7 +246,7 @@ void LinearMBA::process(Function &F) {
     report_fatal_error("merge-seed must be >= 0");
   }
   if(LinearMBASeed != 0) {
-    srand(LinearMBASeed)
+    srand(LinearMBASeed);
   }
   std::vector<Instruction *> ToRemove;
   for (BasicBlock &BB : F) {

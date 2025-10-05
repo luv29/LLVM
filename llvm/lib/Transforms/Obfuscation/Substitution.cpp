@@ -1,7 +1,9 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/Statistic.h"
-using namespace llvm;
+#include "llvm/Support/Debug.h"
 
+using namespace llvm;
+#define DEBUG_TYPE "substitution"
 STATISTIC(NumSubstitutions, "Number of binary operator substitutions performed");
 STATISTIC(NumInstructionsInserted, "Number of IR instructions inserted by substitutions");
 

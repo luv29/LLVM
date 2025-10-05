@@ -1,5 +1,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Support/Debug.h"
+#define DEBUG_TYPE "globalencryption"
 using namespace llvm;
 
 STATISTIC(NumGlobalsEncrypted, "Number of global variables encrypted");

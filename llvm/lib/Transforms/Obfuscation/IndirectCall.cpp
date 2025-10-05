@@ -1,5 +1,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Support/Debug.h"
+#define DEBUG_TYPE "indirectcall"
 using namespace llvm;
 
 STATISTIC(NumCallsMasked, "Number of call instructions transformed to indirect calls");
@@ -13,10 +15,6 @@ static void validateIndirectCallOptions() {
     if (IndCallSeed < 0) {
         llvm::report_fatal_error("indcall-seed must be >= 0");
     }
-}
-
-void IndirectCall::validateOptions() {
-    validateIndirectCallOptions();
 }
 
 
@@ -40,6 +38,7 @@ PreservedAnalyses IndirectCall::run(Function &F, FunctionAnalysisManager &AM) {
   return PreservedAnalyses::all();
 }
 void IndirectCall::process(Function &F) {
+  validateIndirectCallOptions();
   DataLayout Data = F.getParent()->getDataLayout();
   int PtrSize =
       Data.getTypeAllocSize(Type::getInt8Ty(F.getContext())->getPointerTo());

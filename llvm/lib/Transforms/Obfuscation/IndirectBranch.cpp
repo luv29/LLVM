@@ -1,7 +1,9 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/Statistic.h"
-using namespace llvm;
+#include "llvm/Support/Debug.h"
 
+using namespace llvm;
+#define DEBUG_TYPE "indirectbranch"
 STATISTIC(NumBranchesTransformed, "Number of branches transformed to indirect branches");
 STATISTIC(NumCondBranchesTransformed, "Number of conditional branches transformed");
 STATISTIC(NumUncondBranchesTransformed, "Number of unconditional branches transformed");

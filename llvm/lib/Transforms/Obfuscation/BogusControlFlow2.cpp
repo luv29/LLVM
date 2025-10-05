@@ -2,7 +2,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Debug.h"
 using namespace llvm;
-
+#define DEBUG_TYPE "boguscfg"
 STATISTIC(NumBlocksProcessed, "Number of basic blocks processed by BogusControlFlow2");
 STATISTIC(NumClonedBlocks, "Number of cloned blocks created");
 STATISTIC(NumBogusConditions, "Number of bogus comparisons inserted");

@@ -2,7 +2,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/ADT/Statistic.h"
 using namespace llvm;
-
+#define DEBUG_TYPE "aliasaccess"
 STATISTIC(NumAllocasProcessed, "Number of allocas processed by AliasAccess");
 STATISTIC(NumGetterFunctionsCreated, "Number of getter functions created");
 STATISTIC(NumReferenceNodes, "Number of reference nodes created");
@@ -34,11 +34,14 @@ static cl::opt<bool> AliasReuseGetters(
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Transforms/Obfuscation/Utils.h"
 #include <ctime>
+#include "llvm/Support/Error.h"    
 #include <random>
 using namespace llvm;
 namespace polaris {
 PreservedAnalyses AliasAccess::run(Module &M, ModuleAnalysisManager &AM) {
-  static_assert(AliasBranchNum > 1);
+  if (AliasBranchNum <= 1) {
+    llvm::report_fatal_error("Invalid option: -alias-branch-num must be > 1");
+  }
   if (AliasSeed != 0) {
       srand(AliasSeed);
   } else {

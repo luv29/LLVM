@@ -1,6 +1,8 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Support/Debug.h"
 
+#define DEBUG_TYPE "flattening"
 STATISTIC(NumFunctionsFlattened, "Number of functions processed by Flattening pass");
 STATISTIC(NumBlocksFlattened, "Number of basic blocks flattened");
 STATISTIC(NumSwitchBlocksCreated, "Number of switch blocks created in Flattening");
