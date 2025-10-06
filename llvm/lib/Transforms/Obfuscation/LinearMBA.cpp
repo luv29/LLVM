@@ -95,10 +95,15 @@ std::vector<BitwiseTerm> TermType = {
     DEFINE_TERM_INFO(9),  DEFINE_TERM_INFO(10), DEFINE_TERM_INFO(11),
     DEFINE_TERM_INFO(12), DEFINE_TERM_INFO(13)};
 PreservedAnalyses LinearMBA::run(Function &F, FunctionAnalysisManager &AM) {
-  if (readAnnotate(F).find("linearmba") != std::string::npos) {
-    process(F);
-    return PreservedAnalyses::none();
-  }
+  // if (readAnnotate(F).find("linearmba") != std::string::npos) {
+  //   process(F);
+  //   return PreservedAnalyses::none();
+  // }
+  errs() << "Ran Linear MBA\n";
+  ++NumLinearMBAInstrs;
+  ++NumLinearMBATerms;
+  process(F);
+  return PreservedAnalyses::none();
 
   return PreservedAnalyses::all();
 }

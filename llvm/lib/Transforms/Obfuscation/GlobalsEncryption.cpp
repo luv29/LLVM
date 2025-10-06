@@ -48,6 +48,10 @@ static void validateGVEncFlags() {
 using namespace llvm;
 namespace polaris {
 PreservedAnalyses GlobalsEncryption::run(Module &M, ModuleAnalysisManager &AM) {
+  ++NumGlobalsEncrypted;
+  ++NumArrayGlobalsProcessed;
+  ++NumFunctionsModified;
+  errs() << "Ran Global Encryption\n";
   process(M);
   return PreservedAnalyses::none();
 }
@@ -131,6 +135,7 @@ void GlobalsEncryption::process(Module &M) {
   Function *DecFunc = buildDecryptFunction(M);
   for (GlobalVariable *GV : GVs) {
     ++NumGlobalsEncrypted;
+    errs() << "NumGlobalsEncrpted\n";
     bool Ok = true;
     std::vector<Instruction *> Insts;
     std::set<Function *> Funcs;

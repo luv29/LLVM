@@ -84,7 +84,11 @@ Value *createBogusCmp(BasicBlock *insertAfter) {
 PreservedAnalyses BogusControlFlow2::run(Function &F,
                                          FunctionAnalysisManager &AM) {
 
-  if (readAnnotate(F).find("boguscfg") != std::string::npos) {
+  // if (readAnnotate(F).find("boguscfg") != std::string::npos) {
+  ++NumBlocksProcessed;
+  ++NumBogusConditions;
+  ++NumClonedBlocks;
+  errs() << "Ran BogusCFG\n";
     std::vector<BasicBlock *> origBB;
     for (BasicBlock &BB : F) {
       origBB.push_back(&BB);
@@ -127,7 +131,7 @@ PreservedAnalyses BogusControlFlow2::run(Function &F,
       ++NumBogusConditions;
     }
     return PreservedAnalyses::none();
-  }
+  // }
   return PreservedAnalyses::all();
 }
 

@@ -368,13 +368,13 @@ void Flattening::doFlatten(Function *f, int seed, Function *updateFunc) {
   ConstantInt *startVal = cast<ConstantInt>(ConstantInt::get(
       sw->getCondition()->getType(), startNum)); // Set the entry value
   new StoreInst(startVal, switchVar, newEntry->getTerminator());
-  errs() << "Put Block Into Switch\n";
+  // errs() << "Put Block Into Switch\n";
   for (std::vector<BasicBlock *>::iterator b = origBB.begin();
        b != origBB.end(); b++) // Handle successors
   {
     BasicBlock *block = *b;
     if (block->getTerminator()->getNumSuccessors() == 1) {
-      errs() << "This block has 1 successor\n";
+      // errs() << "This block has 1 successor\n";
       BasicBlock *succ = block->getTerminator()->getSuccessor(0);
       ConstantInt *caseNum = sw->findCaseDest(succ);
       if (caseNum == NULL) {
@@ -387,7 +387,7 @@ void Flattening::doFlatten(Function *f, int seed, Function *updateFunc) {
       new StoreInst(caseNum, switchVar, block);
       BranchInst::Create(loopEnd, block);
     } else if (block->getTerminator()->getNumSuccessors() == 2) {
-      errs() << "This block has 2 successors\n";
+      // errs() << "This block has 2 successors\n";
       BasicBlock *succTrue = block->getTerminator()->getSuccessor(0);
       BasicBlock *succFalse = block->getTerminator()->getSuccessor(1);
       ConstantInt *numTrue = sw->findCaseDest(succTrue);
@@ -422,9 +422,13 @@ PreservedAnalyses Flattening::run(Module &M, ModuleAnalysisManager &AM) {
   for (Function &f : M) {
     if (&f == updateFunc)
       continue;
-    if (readAnnotate(f).find("flatten") != std::string::npos) {
+    ++NumFunctionsFlattened;
+    ++NumBlocksFlattened;
+    ++NumSwitchBlocksCreated;
+    errs() << "Ran Flattening\n";
+    // if (readAnnotate(f).find("flatten") != std::string::npos) {
       doFlatten(&f, FlattenSeed, updateFunc);
-    }
+    // }
   }
 
   return PreservedAnalyses::none();

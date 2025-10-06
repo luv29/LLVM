@@ -30,10 +30,14 @@ static void validateIndirectCallOptions() {
 using namespace llvm;
 namespace polaris {
 PreservedAnalyses IndirectCall::run(Function &F, FunctionAnalysisManager &AM) {
-  if (readAnnotate(F).find("indirectcall") != std::string::npos) {
-    process(F);
-    return PreservedAnalyses::none();
-  }
+  // if (readAnnotate(F).find("indirectcall") != std::string::npos) {
+  //   process(F);
+  //   return PreservedAnalyses::none();
+  // }
+  errs() << "Ran Indirect Call\n";
+  ++NumCallsMasked;
+  process(F);
+  return PreservedAnalyses::none();
 
   return PreservedAnalyses::all();
 }

@@ -31,6 +31,9 @@ static cl::opt<int> MergeRatio(
 using namespace llvm;
 namespace polaris {
 PreservedAnalyses MergeFunction::run(Module &M, ModuleAnalysisManager &AM) {
+  errs() << "Ran Merge function\n";
+  ++NumFunctionsMerged;
+  ++NumCallsReplaced;
   process(M);
   return PreservedAnalyses::none();
 }

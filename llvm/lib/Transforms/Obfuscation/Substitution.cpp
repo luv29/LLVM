@@ -28,7 +28,10 @@ static IRBuilder<> *builder = nullptr;
 
 PreservedAnalyses Substitution::run(Function &F, FunctionAnalysisManager &AM) {
   if(SubstitutionSeed != 0) srand(SubstitutionSeed);
-  if (readAnnotate(F).find("substitution") != std::string::npos) {
+  errs() << "Ran Substitution\n";
+  ++NumSubstitutions;
+  ++NumInstructionsInserted;
+  // if (readAnnotate(F).find("substitution") != std::string::npos) {
     builder = new IRBuilder<>(F.getContext());
     for (BasicBlock &BB : F) {
       std::vector<Instruction *> origInst;
@@ -45,7 +48,7 @@ PreservedAnalyses Substitution::run(Function &F, FunctionAnalysisManager &AM) {
     PreservedAnalyses PA;
     PA.preserveSet<CFGAnalyses>();
     return PA;
-  }
+  // }
   return PreservedAnalyses::all();
 }
 

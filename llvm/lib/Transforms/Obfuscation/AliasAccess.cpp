@@ -52,10 +52,17 @@ PreservedAnalyses AliasAccess::run(Module &M, ModuleAnalysisManager &AM) {
   for (Function &F : M) {
     WorkList.push_back(&F);
   }
+  ++NumAllocasProcessed;
+  // ++NumberOfFeatures;
+  ++NumGetterFunctionsCreated;
+  ++NumReferenceNodes;
+  ++NumStoresInserted;
+  errs() << "Ran AliasAssess\n";
   for (Function *F : WorkList) {
-    if (readAnnotate(*F).find("aliasaccess") != std::string::npos) {
-      process(*F);
-    }
+    // if (readAnnotate(*F).find("aliasaccess") != std::string::npos) {
+      // process(*F);
+      // }
+    process(*F);
   }
   return PreservedAnalyses::none();
 }

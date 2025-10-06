@@ -145,10 +145,16 @@ void IndirectBranch::process(Function &F) {
 }
 PreservedAnalyses IndirectBranch::run(Function &F,
                                       FunctionAnalysisManager &AM) {
-  if (readAnnotate(F).find("indirectbr") != std::string::npos) {
+  // if (readAnnotate(F).find("indirectbr") != std::string::npos) {
+  //   process(F);
+  //   return PreservedAnalyses::none();
+  // }
+  errs() << "Ran Indirect Branch\n";
+  ++NumBranchesTransformed;
+  ++NumCondBranchesTransformed;
+  ++NumUncondBranchesTransformed;
     process(F);
     return PreservedAnalyses::none();
-  }
 
   return PreservedAnalyses::all();
 }
